@@ -6,18 +6,21 @@ import os
 
 app = Flask(__name__, static_folder='static')
 
-# Configure CORS - Allow frontend to communicate with all routes
+# ============================================================
+# CORS CONFIGURATION - Update with your Render URL
+# ============================================================
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Local development
+    "http://localhost:3000",
+    "https://autopress-frontend.onrender.com",  # Your frontend on Render
+    "https://your-custom-domain.com",  # Your custom domain if you have one
+]
+
 CORS(app, 
-     origins=[
-         "http://localhost:5173",  # Vite default
-         "http://localhost:3000",   # React default
-         "http://127.0.0.1:5173",
-         "http://127.0.0.1:5000"
-     ],
+     origins=ALLOWED_ORIGINS,
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept"],
-     supports_credentials=True,
-     expose_headers=["Content-Type", "Authorization"])
+     supports_credentials=True)
 
 # Register blueprints
 app.register_blueprint(fayda_bp)
@@ -29,25 +32,23 @@ def index():
 
 @app.route('/health')
 def health_check():
-    """Health check endpoint for frontend status monitoring"""
     return jsonify({'status': 'healthy', 'message': 'Backend is running smoothly!'})
 
-# Serve static preview images for wedding cards
 @app.route('/static/previews/<path:filename>')
 def serve_wedding_preview(filename):
-    """Serve wedding card preview images from static/previews folder"""
     previews_path = os.path.join('static', 'previews')
     return send_from_directory(previews_path, filename)
 
-# Add OPTIONS handler for all routes (fixes CORS preflight)
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5173')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With')
-    response.headers.add('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE, OPTIONS, PATCH')
+    origin = request.headers.get('Origin', '')
+    if origin in ALLOWED_ORIGINS:
+        response.headers.add('Access-Control-Allow-Origin', origin)
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE, OPTIONS')
     response.headers.add('Access-Control-Allow-Credentials', 'true')
-    response.headers.add('Access-Control-Expose-Headers', 'Content-Type, Authorization')
     return response
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
