@@ -1,6 +1,8 @@
 // src/features/fayda/ImageMode.jsx
 import api from "../../services/api";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import {
   Upload,
   X,
@@ -17,6 +19,9 @@ import {
 } from "lucide-react";
 
 const ImageMode = () => {
+  const navigate = useNavigate();
+  const { credits, deductCredits, refreshUserData } = useAuth();
+
   const [currentStep, setCurrentStep] = useState(1);
   const [files, setFiles] = useState({
     front: null,
@@ -229,10 +234,17 @@ const ImageMode = () => {
     setExtractedData({ ...extractedData, [field]: value });
   };
 
-  // Option 1: Add to Queue (with photo processing)
+  // Option 1: Add to Queue (with photo processing and credit deduction)
   const handleAddToQueue = async () => {
     if (!extractedData.amharic_name) {
       alert("No extracted data found. Please go back and extract data first.");
+      return;
+    }
+
+    // ✅ Check credits first
+    if (credits < 1) {
+      alert("Insufficient credits! You need 1 credit to generate an ID card.");
+      navigate("/pricing");
       return;
     }
 
@@ -282,6 +294,17 @@ const ImageMode = () => {
 
       const newJobId = result.job_id;
 
+      // ✅ Deduct 1 credit after successful queue addition
+      const deducted = await deductCredits(1);
+      if (!deducted) {
+        alert("Failed to deduct credits. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+
+      // ✅ Refresh user data to update credits display
+      await refreshUserData();
+
       setJobId(newJobId);
       setQueueStatus("queued");
       setProgressMessage("");
@@ -297,10 +320,17 @@ const ImageMode = () => {
     }
   };
 
-  // Option 2: Process Now (Instant with photo processing)
+  // Option 2: Process Now (Instant with photo processing and credit deduction)
   const handleProcessNow = async () => {
     if (!extractedData.amharic_name) {
       alert("No extracted data found. Please go back and extract data first.");
+      return;
+    }
+
+    // ✅ Check credits first
+    if (credits < 1) {
+      alert("Insufficient credits! You need 1 credit to generate an ID card.");
+      navigate("/pricing");
       return;
     }
 
@@ -344,6 +374,18 @@ const ImageMode = () => {
 
       const pdfBlob = await api.generatePDF(cardsData);
       const pdfUrl = URL.createObjectURL(pdfBlob);
+
+      // ✅ Deduct 1 credit after successful generation
+      const deducted = await deductCredits(1);
+      if (!deducted) {
+        alert("Failed to deduct credits. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+
+      // ✅ Refresh user data to update credits display
+      await refreshUserData();
+
       setGeneratedPdf({
         url: pdfUrl,
         filename: `fayda_id_instant_${Date.now()}.pdf`,
@@ -387,6 +429,35 @@ const ImageMode = () => {
 
   return (
     <div className="space-y-6">
+      {/* Credit Warning Banner */}
+      {credits < 5 && credits > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center justify-between">
+          <span className="text-sm text-yellow-800">
+            ⚠️ Low credits: Only {credits} credit(s) left
+          </span>
+          <button
+            onClick={() => navigate("/pricing")}
+            className="text-sm text-yellow-800 underline"
+          >
+            Buy more
+          </button>
+        </div>
+      )}
+
+      {credits === 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center justify-between">
+          <span className="text-sm text-red-800">
+            ❌ No credits remaining. Purchase credits to generate ID cards.
+          </span>
+          <button
+            onClick={() => navigate("/pricing")}
+            className="text-sm text-red-800 underline font-medium"
+          >
+            Buy Credits
+          </button>
+        </div>
+      )}
+
       {/* Progress Message */}
       {progressMessage && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center space-x-2">
@@ -577,7 +648,9 @@ const ImageMode = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Cost: 1 credit</p>
-                <p className="text-xs text-gray-500">Balance: 250 credits</p>
+                <p className="text-xs text-gray-500">
+                  Balance: {credits} credits
+                </p>
               </div>
               <button
                 onClick={handleExtractData}

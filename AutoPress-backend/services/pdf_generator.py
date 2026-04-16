@@ -59,14 +59,14 @@ CARD1_FIELDS = [
     {"key": "regionEnglish",      "x": 1371, "y": 368, "width": 160, "height": 30, "fontSize": 7, "rotation": 0},
     {"key": "subcityAmharic",     "x": 1370, "y": 401, "width": 374, "height": 39, "fontSize": 7, "rotation": 0},
     {"key": "subcityEnglish",     "x": 1371, "y": 445, "width": 372, "height": 39, "fontSize": 7, "rotation": 0},
-    {"key": "woredaAmharic",      "x": 1371, "y": 505, "width": 132, "height": 40, "fontSize": 7, "rotation": 0},
-    {"key": "woredaEnglish",      "x": 1371, "y": 530, "width": 129, "height": 40, "fontSize": 7, "rotation": 0},
+    {"key": "woredaAmharic",      "x": 1371, "y": 505, "width": 132, "height": 40, "fontSize": 7, "rotation": 0, "wrap": True},
+    {"key": "woredaEnglish",      "x": 1371, "y": 530, "width": 129, "height": 40, "fontSize": 7, "rotation": 0, "wrap": True},
     {"key": "issueDateGregorian", "x": 140,  "y": 120, "width": 28,  "height": 200, "fontSize": 6, "rotation": 270},
     {"key": "issueDateEthiopian", "x": 140,  "y": 420, "width": 25,  "height": 180, "fontSize": 6, "rotation": 270},
     {"key": "expiryDateGregorian","x": 710,  "y": 540, "width": 168, "height": 48, "fontSize": 6, "rotation": 0},
     {"key": "expiryDateEthiopian","x": 533,  "y": 540, "width": 158, "height": 45, "fontSize": 6, "rotation": 0},
     {"key": "FIN",                "x": 1470, "y": 605, "width": 201, "height": 46, "fontSize": 6, "rotation": 0},
-    {"key": "serialNumber",       "x": 2234, "y": 662, "width": 120, "height": 24, "fontSize": 3, "rotation": 0},
+    {"key": "serialNumber",       "x": 2234, "y": 662, "width": 120, "height": 24, "fontSize": 4, "rotation": 0},
     {"key": "profilePhoto",       "x": 183,  "y": 230, "width": 340, "height": 446, "type": "image", "rotation": 0},
     {"key": "smallProfile",       "x": 952,  "y": 549, "width": 122, "height": 141, "type": "image", "rotation": 0},
     {"key": "qrCode",             "x": 1720, "y": 80,  "width": 640, "height": 570, "type": "image", "rotation": 0},
@@ -87,14 +87,14 @@ CARD2_FIELDS = [
     {"key": "regionEnglish",      "x": 1370, "y": 1041, "width": 175, "height": 45, "fontSize": 7, "rotation": 0},
     {"key": "subcityAmharic",     "x": 1370, "y": 1089, "width": 372, "height": 38, "fontSize": 7, "rotation": 0},
     {"key": "subcityEnglish",     "x": 1370, "y": 1129, "width": 372, "height": 45, "fontSize": 7, "rotation": 0},
-    {"key": "woredaAmharic",      "x": 1372, "y": 1199, "width": 161, "height": 38, "fontSize": 7, "rotation": 0},
-    {"key": "woredaEnglish",      "x": 1374, "y": 1224, "width": 159, "height": 29, "fontSize": 7, "rotation": 0},
+    {"key": "woredaAmharic",      "x": 1372, "y": 1199, "width": 161, "height": 38, "fontSize": 7, "rotation": 0, "wrap": True},
+    {"key": "woredaEnglish",      "x": 1374, "y": 1224, "width": 159, "height": 29, "fontSize": 7, "rotation": 0, "wrap": True},
     {"key": "issueDateGregorian", "x": 135,  "y": 850,  "width": 35,  "height": 143, "fontSize": 6, "rotation": 270},
     {"key": "issueDateEthiopian", "x": 135,  "y": 1140, "width": 35,  "height": 143, "fontSize": 6, "rotation": 270},
     {"key": "expiryDateGregorian","x": 701,  "y": 1209, "width": 168, "height": 31, "fontSize": 6, "rotation": 0},
     {"key": "expiryDateEthiopian","x": 525,  "y": 1209, "width": 156, "height": 38, "fontSize": 6, "rotation": 0},
     {"key": "FIN",                "x": 1470, "y": 1277, "width": 196, "height": 43, "fontSize": 6, "rotation": 0},
-    {"key": "serialNumber",       "x": 2238, "y": 1335, "width": 100, "height": 31, "fontSize": 3, "rotation": 0},
+    {"key": "serialNumber",       "x": 2238, "y": 1335, "width": 100, "height": 31, "fontSize": 4, "rotation": 0},
     {"key": "profilePhoto",       "x": 180,  "y": 877,  "width": 343, "height": 477, "type": "image", "rotation": 0},
     {"key": "smallProfile",       "x": 947,  "y": 1217, "width": 134, "height": 152, "type": "image", "rotation": 0},
     {"key": "qrCode",             "x": 1720, "y": 750,  "width": 640, "height": 570, "type": "image", "rotation": 0},
@@ -115,14 +115,14 @@ CARD3_FIELDS = [
     {"key": "regionEnglish",      "x": 1374, "y": 1706, "width": 156, "height": 43,  "fontSize": 7, "rotation": 0},
     {"key": "subcityAmharic",     "x": 1372, "y": 1749, "width": 372, "height": 43,  "fontSize": 7, "rotation": 0},
     {"key": "subcityEnglish",     "x": 1374, "y": 1794, "width": 368, "height": 43,  "fontSize": 7, "rotation": 0},
-    {"key": "woredaAmharic",      "x": 1370, "y": 1849, "width": 143, "height": 43,  "fontSize": 7, "rotation": 0},
-    {"key": "woredaEnglish",      "x": 1372, "y": 1874, "width": 140, "height": 45,  "fontSize": 7, "rotation": 0},
+    {"key": "woredaAmharic",      "x": 1370, "y": 1849, "width": 143, "height": 43,  "fontSize": 7, "rotation": 0, "wrap": True},
+    {"key": "woredaEnglish",      "x": 1372, "y": 1874, "width": 140, "height": 45,  "fontSize": 7, "rotation": 0, "wrap": True},
     {"key": "issueDateGregorian", "x": 135,  "y": 1500, "width": 31,  "height": 169, "fontSize": 6, "rotation": 270},
     {"key": "issueDateEthiopian", "x": 135,  "y": 1850, "width": 29,  "height": 112, "fontSize": 6, "rotation": 270},
     {"key": "expiryDateGregorian","x": 703,  "y": 1891, "width": 160, "height": 45,  "fontSize": 6, "rotation": 0},
     {"key": "expiryDateEthiopian","x": 530,  "y": 1891, "width": 150, "height": 44,  "fontSize": 6, "rotation": 0},
     {"key": "FIN",                "x": 1477, "y": 1955, "width": 191, "height": 39,  "fontSize": 6, "rotation": 0},
-    {"key": "serialNumber",       "x": 2236, "y": 2020, "width": 110, "height": 32,  "fontSize": 3, "rotation": 0},
+    {"key": "serialNumber",       "x": 2236, "y": 2020, "width": 110, "height": 32,  "fontSize": 4, "rotation": 0},
     {"key": "profilePhoto",       "x": 185,  "y": 1552, "width": 336, "height": 474, "type": "image",   "rotation": 0},
     {"key": "smallProfile",       "x": 950,  "y": 1905, "width": 129, "height": 139, "type": "image",   "rotation": 0},
     {"key": "qrCode",             "x": 1720, "y": 1428, "width": 640, "height": 570, "type": "image",   "rotation": 0},
@@ -143,14 +143,14 @@ CARD4_FIELDS = [
     {"key": "regionEnglish",      "x": 1377, "y": 2392, "width": 160, "height": 45,  "fontSize": 7, "rotation": 0},
     {"key": "subcityAmharic",     "x": 1377, "y": 2441, "width": 363, "height": 47,  "fontSize": 7, "rotation": 0},
     {"key": "subcityEnglish",     "x": 1377, "y": 2495, "width": 364, "height": 47,  "fontSize": 7, "rotation": 0},
-    {"key": "woredaAmharic",      "x": 1379, "y": 2553, "width": 163, "height": 40,  "fontSize": 7, "rotation": 0},
-    {"key": "woredaEnglish",      "x": 1381, "y": 2578, "width": 165, "height": 31,  "fontSize": 7, "rotation": 0},
+    {"key": "woredaAmharic",      "x": 1379, "y": 2553, "width": 163, "height": 40,  "fontSize": 7, "rotation": 0, "wrap": True},
+    {"key": "woredaEnglish",      "x": 1381, "y": 2578, "width": 165, "height": 31,  "fontSize": 7, "rotation": 0, "wrap": True},
     {"key": "issueDateGregorian", "x": 130,  "y": 2200, "width": 49,  "height": 156, "fontSize": 6, "rotation": 270},
     {"key": "issueDateEthiopian", "x": 130,  "y": 2500, "width": 47,  "height": 142, "fontSize": 6, "rotation": 270},
     {"key": "expiryDateGregorian","x": 715,  "y": 2566, "width": 147, "height": 40,  "fontSize": 6, "rotation": 0},
     {"key": "expiryDateEthiopian","x": 540,  "y": 2565, "width": 149, "height": 42,  "fontSize": 6, "rotation": 0},
     {"key": "FIN",                "x": 1474, "y": 2630, "width": 196, "height": 40,  "fontSize": 6, "rotation": 0},
-    {"key": "serialNumber",       "x": 2233, "y": 2689, "width": 125, "height": 23,  "fontSize": 3, "rotation": 0},
+    {"key": "serialNumber",       "x": 2233, "y": 2689, "width": 125, "height": 23,  "fontSize": 4, "rotation": 0},
     {"key": "profilePhoto",       "x": 178,  "y": 2283, "width": 350, "height": 446, "type": "image",   "rotation": 0},
     {"key": "smallProfile",       "x": 945,  "y": 2580, "width": 135, "height": 139, "type": "image",   "rotation": 0},
     {"key": "qrCode",             "x": 1720, "y": 2103, "width": 640, "height": 570, "type": "image",   "rotation": 0},
@@ -171,14 +171,14 @@ CARD5_FIELDS = [
     {"key": "regionEnglish",      "x": 1374, "y": 3069, "width": 154, "height": 42,  "fontSize": 7, "rotation": 0},
     {"key": "subcityAmharic",     "x": 1377, "y": 3116, "width": 364, "height": 42,  "fontSize": 7, "rotation": 0},
     {"key": "subcityEnglish",     "x": 1378, "y": 3167, "width": 361, "height": 42,  "fontSize": 7, "rotation": 0},
-    {"key": "woredaAmharic",      "x": 1381, "y": 3226, "width": 166, "height": 36,  "fontSize": 7, "rotation": 0},
-    {"key": "woredaEnglish",      "x": 1380, "y": 3251, "width": 167, "height": 35,  "fontSize": 7, "rotation": 0},
+    {"key": "woredaAmharic",      "x": 1381, "y": 3226, "width": 166, "height": 36,  "fontSize": 7, "rotation": 0, "wrap": True},
+    {"key": "woredaEnglish",      "x": 1380, "y": 3251, "width": 167, "height": 35,  "fontSize": 7, "rotation": 0, "wrap": True},
     {"key": "issueDateGregorian", "x": 135,  "y": 2850, "width": 32,  "height": 164, "fontSize": 6, "rotation": 270},
     {"key": "issueDateEthiopian", "x": 135,  "y": 3170, "width": 26,  "height": 141, "fontSize": 6, "rotation": 270},
     {"key": "expiryDateGregorian","x": 714,  "y": 3239, "width": 147, "height": 46,  "fontSize": 6, "rotation": 0},
     {"key": "expiryDateEthiopian","x": 544,  "y": 3239, "width": 144, "height": 44,  "fontSize": 6, "rotation": 0},
     {"key": "FIN",                "x": 1477, "y": 3305, "width": 192, "height": 42,  "fontSize": 6, "rotation": 0},
-    {"key": "serialNumber",       "x": 2233, "y": 3362, "width": 117, "height": 30,  "fontSize": 3, "rotation": 0},
+    {"key": "serialNumber",       "x": 2233, "y": 3362, "width": 117, "height": 30,  "fontSize": 4, "rotation": 0},
     {"key": "profilePhoto",       "x": 167,  "y": 2947, "width": 361, "height": 432, "type": "image",   "rotation": 0},
     {"key": "smallProfile",       "x": 947,  "y": 3251, "width": 127, "height": 144, "type": "image",   "rotation": 0},
     {"key": "qrCode",             "x": 1720, "y": 2780, "width": 640, "height": 570, "type": "image",   "rotation": 0},
@@ -262,7 +262,7 @@ def generate_barcode(fan_number):
         spaced  = '   '.join(list(fan_str))
 
         # ── Text area on top ──
-        text_height = 60
+        text_height = 55
         new_img     = Image.new('RGB', (bar_w, bar_h + text_height), (255, 255, 255))
         new_img.paste(barcode_img, (0, text_height))
         draw        = ImageDraw.Draw(new_img)
@@ -273,7 +273,7 @@ def generate_barcode(fan_number):
 
         # ── Find biggest font size that fits ──
         best_font      = None
-        best_font_size = 14
+        best_font_size = 30
 
         for font_size in range(55, 10, -1):
             try:
@@ -340,6 +340,106 @@ def get_font(page, is_amharic, amharic_registered, english_registered):
         return "English" if english_registered else "helv"
 
 # ============================================================
+# TEXT WRAPPING FUNCTION (NEW)
+# ============================================================
+
+def split_text_into_lines(text, max_width, page, point, fontname, fontsize):
+    """
+    Split text into multiple lines that fit within max_width.
+    Returns list of lines.
+    """
+    if not text:
+        return []
+    
+    words = text.split(' ')
+    lines = []
+    current_line = []
+    
+    for word in words:
+        # Test if word fits on current line
+        test_line = ' '.join(current_line + [word])
+        text_rect = page.insert_text(
+            point,
+            test_line,
+            fontsize=fontsize,
+            fontname=fontname,
+            render_mode=fitz.TEXT_RENDER_MODE_INVISIBLE  # Invisible mode just to measure
+        )
+        
+        # Get text width (approximate using character count for simplicity)
+        # Since PyMuPDF doesn't easily return text width, we use character count approximation
+        # For more accuracy, we can use the font metrics
+        approx_width = len(test_line) * (fontsize * 0.6)  # Rough approximation
+        
+        if approx_width <= max_width:
+            current_line.append(word)
+        else:
+            if current_line:
+                lines.append(' '.join(current_line))
+            current_line = [word]
+    
+    if current_line:
+        lines.append(' '.join(current_line))
+    
+    return lines
+
+
+def insert_wrapped_text(page, text, rect, fontname, fontsize, color=(0, 0, 0)):
+    """
+    Insert text with automatic wrapping into a rectangle.
+    """
+    if not text:
+        return
+    
+    max_width = rect.width
+    line_height = fontsize * 1.2  # Line spacing
+    
+    # Split text into lines
+    words = text.split(' ')
+    lines = []
+    current_line = []
+    
+    for word in words:
+        test_line = ' '.join(current_line + [word])
+        # Approximate text width
+        approx_width = len(test_line) * (fontsize * 0.6)
+        
+        if approx_width <= max_width:
+            current_line.append(word)
+        else:
+            if current_line:
+                lines.append(' '.join(current_line))
+            current_line = [word]
+    
+    if current_line:
+        lines.append(' '.join(current_line))
+    
+    # Insert each line
+    current_y = rect.y0 + fontsize
+    for line in lines:
+        if current_y + line_height <= rect.y1:
+            point = fitz.Point(rect.x0, current_y)
+            page.insert_text(
+                point,
+                line,
+                fontsize=fontsize,
+                fontname=fontname,
+                color=color,
+            )
+            current_y += line_height
+        else:
+            # If doesn't fit, add ellipsis
+            point = fitz.Point(rect.x0, current_y)
+            page.insert_text(
+                point,
+                line[:int(len(line) * 0.8)] + "...",
+                fontsize=fontsize,
+                fontname=fontname,
+                color=color,
+            )
+            break
+
+# ============================================================
 # MAIN PDF GENERATOR
 # ============================================================
 
@@ -399,6 +499,7 @@ def generate_final_pdf(cards_data, template_count):
             w          = field['width']
             h          = field['height']
             rotation   = field.get('rotation', 0)
+            should_wrap = field.get('wrap', False)  # NEW: check if field should wrap
 
             sx, sy, sw, sh = scale_coords(
                 x, y, w, h,
@@ -441,16 +542,25 @@ def generate_final_pdf(cards_data, template_count):
                             color=(0, 0, 0),
                             rotate=90,
                         )
+                        print(f"  ✅ [{key}]: '{text_value}' result={result}")
                     else:
-                        point  = fitz.Point(sx, sy + font_size)
-                        result = page.insert_text(
-                            point,
-                            text_value,
-                            fontsize=font_size,
-                            fontname=font_name,
-                            color=(0, 0, 0),
-                        )
-                    print(f"  ✅ [{key}]: '{text_value}' result={result}")
+                        # ── NEW: Use wrapped text for fields that need it ──
+                        if should_wrap:
+                            rect = fitz.Rect(sx, sy, sx + sw, sy + sh)
+                            insert_wrapped_text(
+                                page, text_value, rect, font_name, font_size, (0, 0, 0)
+                            )
+                            print(f"  ✅ [{key}]: wrapped text inserted")
+                        else:
+                            point  = fitz.Point(sx, sy + font_size)
+                            result = page.insert_text(
+                                point,
+                                text_value,
+                                fontsize=font_size,
+                                fontname=font_name,
+                                color=(0, 0, 0),
+                            )
+                            print(f"  ✅ [{key}]: '{text_value}' result={result}")
                 except Exception as e:
                     print(f"  ❌ Text error [{key}]: {e}")
 

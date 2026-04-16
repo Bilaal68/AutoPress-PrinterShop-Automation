@@ -40,6 +40,13 @@ def deduct_credits(user_id, amount):
     user_ref.update({'credits': current_credits - amount})
     return True, current_credits - amount
 
+def is_admin(user_id):
+    """Check if user has admin role"""
+    user_doc = db.collection('users').document(user_id).get()
+    if user_doc.exists:
+        return user_doc.to_dict().get('role') == 'admin'
+    return False
+
 # ============================================================
 # ENDPOINT 1 — Extract Image Data
 # ============================================================
@@ -90,7 +97,7 @@ def extract_image_data():
     }), 200
 
 # ============================================================
-# ENDPOINT 2 — Generate Final ID (direct, no queue)
+# ENDPOINT 2 — Generate Final ID (direct, no queue) WITH CREDIT DEDUCTION
 # ============================================================
 
 @fayda_bp.route('/generate-final-id', methods=['POST'])
@@ -98,7 +105,7 @@ def generate_final_id():
 
     # Step 1 — Verify token
     try:
-        email = verify_token(request)
+        user_id = verify_token(request)
     except Exception as e:
         return jsonify({'error': str(e)}), 401
 
@@ -116,20 +123,42 @@ def generate_final_id():
     if template_count < 1 or template_count > 5:
         return jsonify({'error': 'Cards must be between 1 and 5'}), 400
 
-    # Step 4 — Merge edited texts into extracted texts
+    # STEP 4 — CREDIT CHECK AND DEDUCTION
+    credit_cost = CREDIT_COST[template_count]
+    current_credits = get_user_credits(user_id)
+
+    print(f"💳 User [{user_id}] credits: {current_credits} | Cost: {credit_cost}")
+
+    if current_credits < credit_cost:
+        return jsonify({
+            'status':           'error',
+            'message':          f'Insufficient credits. You have {current_credits} but need {credit_cost}',
+            'current_credits':  current_credits,
+            'required_credits': credit_cost,
+        }), 402
+
+    # Deduct credits
+    success, result = deduct_credits(user_id, credit_cost)
+    if not success:
+        return jsonify({'error': result}), 402
+
+    remaining_credits = result
+    print(f"✅ Credits deducted. Remaining: {remaining_credits}")
+
+    # Step 5 — Merge edited texts into extracted texts
     for card in cards_data:
         extracted = card.get('extracted_texts', {})
         edited    = card.get('edited_texts', {})
         extracted.update(edited)
         card['extracted_texts'] = extracted
 
-    # Step 5 — Generate PDF
+    # Step 6 — Generate PDF
     try:
         pdf_bytes = generate_final_pdf(cards_data, template_count)
     except Exception as e:
         return jsonify({'error': f'PDF generation failed: {str(e)}'}), 500
 
-    # Step 6 — Return PDF
+    # Step 7 — Return PDF
     return send_file(
         io.BytesIO(pdf_bytes),
         mimetype='application/pdf',
@@ -138,7 +167,7 @@ def generate_final_id():
     )
 
 # ============================================================
-# ENDPOINT 3 — Add to Queue
+# ENDPOINT 3 — Add to Queue (WITH CREDIT DEDUCTION)
 # ============================================================
 
 @fayda_bp.route('/add-to-queue', methods=['POST'])
@@ -427,8 +456,9 @@ def process_queue():
         as_attachment=True,
         download_name='fayda_id_cards.pdf'
     )
+
 # ============================================================
-# ENDPOINT 7 — Process PDF Template
+# ENDPOINT 7 — Process PDF Template (WITH CREDIT DEDUCTION)
 # ============================================================
 
 @fayda_bp.route('/process-pdf-template', methods=['POST'])
@@ -460,11 +490,33 @@ def process_pdf_template():
 
     print(f"\n📄 Processing {len(pdf_files)} PDF file(s) for user [{user_id}]")
 
-    # Step 4 — Extract data from each PDF
+    # STEP 4 — CREDIT CHECK AND DEDUCTION FOR PDF MODE
+    template_count = len(pdf_files)
+    credit_cost = CREDIT_COST[template_count]
+    current_credits = get_user_credits(user_id)
+
+    print(f"💳 User [{user_id}] credits: {current_credits} | Cost: {credit_cost}")
+
+    if current_credits < credit_cost:
+        return jsonify({
+            'status':           'error',
+            'message':          f'Insufficient credits. You have {current_credits} but need {credit_cost}',
+            'current_credits':  current_credits,
+            'required_credits': credit_cost,
+        }), 402
+
+    # Deduct credits
+    success, result = deduct_credits(user_id, credit_cost)
+    if not success:
+        return jsonify({'error': result}), 402
+
+    remaining_credits = result
+    print(f"✅ Credits deducted. Remaining: {remaining_credits}")
+
+    # Step 5 — Extract data from each PDF
     from services.gemini import extract_from_pdf
 
-    all_cards      = []
-    template_count = len(pdf_files)
+    all_cards = []
 
     for i, pdf_file in enumerate(pdf_files):
         print(f"\n📄 Processing PDF {i+1}/{template_count}: {pdf_file.filename}")
@@ -483,6 +535,8 @@ def process_pdf_template():
 
         except Exception as e:
             print(f"  ❌ PDF {i+1} extraction failed: {e}")
+            # Refund credits if extraction fails
+            refund_success, _ = deduct_credits(user_id, -credit_cost)
             return jsonify({
                 'error': f'Failed to extract data from PDF {i+1}: {str(e)}'
             }), 500
@@ -490,15 +544,17 @@ def process_pdf_template():
     print(f"\n📦 Total cards extracted: {len(all_cards)}")
     print(f"🖼️  Using template: {template_count}-card-template.pdf")
 
-    # Step 5 — Generate PDF
+    # Step 6 — Generate PDF
     try:
         pdf_bytes = generate_final_pdf(all_cards, template_count)
         print(f"✅ PDF generated successfully")
     except Exception as e:
         print(f"❌ PDF generation failed: {e}")
+        # Refund credits if generation fails
+        refund_success, _ = deduct_credits(user_id, -credit_cost)
         return jsonify({'error': f'PDF generation failed: {str(e)}'}), 500
 
-    # Step 6 — Return PDF
+    # Step 7 — Return PDF
     return send_file(
         io.BytesIO(pdf_bytes),
         mimetype='application/pdf',
@@ -507,7 +563,7 @@ def process_pdf_template():
     )
 
 # ============================================================
-# ENDPOINT 7 — Process Photo (BG Remove + Color)
+# ENDPOINT 8 — Process Photo (BG Remove + Color)
 # ============================================================
 
 @fayda_bp.route('/process-photo', methods=['POST'])
@@ -601,3 +657,210 @@ def process_photo():
     except Exception as e:
         print(f"❌ process_photo error: {e}")
         return jsonify({'error': str(e)}), 500
+
+# ============================================================
+# PAYMENT & ADMIN ENDPOINTS
+# ============================================================
+
+@fayda_bp.route('/submit-payment-request', methods=['POST'])
+def submit_payment_request():
+    """User submits payment request with receipt number"""
+    try:
+        user_id = verify_token(request)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 401
+    
+    data = request.json
+    
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    receipt_number = data.get('receipt_number')
+    payment_method = data.get('payment_method')
+    credits = data.get('credits')
+    amount = data.get('amount')
+    package_id = data.get('package_id')
+    user_email = data.get('user_email')
+    user_name = data.get('user_name')
+    
+    if not receipt_number or not payment_method or not credits:
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Create payment request
+    payment_data = {
+        'user_id': user_id,
+        'user_email': user_email,
+        'user_name': user_name,
+        'package_id': package_id,
+        'credits': credits,
+        'amount': amount,
+        'payment_method': payment_method,
+        'receipt_number': receipt_number,
+        'status': 'pending',
+        'created_at': datetime.now(timezone.utc).isoformat(),
+        'updated_at': datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Save to Firestore
+    doc_ref = db.collection('payment_requests').document()
+    payment_data['id'] = doc_ref.id
+    doc_ref.set(payment_data)
+    
+    print(f"✅ Payment request submitted: {doc_ref.id} for user {user_email}")
+    
+    return jsonify({
+        'status': 'success',
+        'message': 'Payment request submitted successfully. Admin will verify and add credits within 24 hours.',
+        'request_id': doc_ref.id
+    }), 200
+
+
+@fayda_bp.route('/admin/payment-requests', methods=['GET'])
+def admin_list_payment_requests():
+    """Admin gets all payment requests"""
+    try:
+        admin_id = verify_token(request)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 401
+    
+    if not is_admin(admin_id):
+        return jsonify({'error': 'Unauthorized. Admin access required.'}), 403
+    
+    payments = db.collection('payment_requests').order_by('created_at', direction='DESC').stream()
+    result = []
+    for p in payments:
+        data = p.to_dict()
+        data['id'] = p.id
+        result.append(data)
+    
+    return jsonify({'payments': result}), 200
+
+
+@fayda_bp.route('/admin/users', methods=['GET'])
+def admin_list_users():
+    """Admin gets all users"""
+    try:
+        admin_id = verify_token(request)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 401
+    
+    if not is_admin(admin_id):
+        return jsonify({'error': 'Unauthorized. Admin access required.'}), 403
+    
+    users = db.collection('users').stream()
+    result = []
+    for u in users:
+        data = u.to_dict()
+        data['uid'] = u.id
+        result.append(data)
+    
+    return jsonify({'users': result}), 200
+
+
+@fayda_bp.route('/admin/approve-payment', methods=['POST'])
+def admin_approve_payment_request():
+    """Admin approves payment and adds credits to user"""
+    try:
+        admin_id = verify_token(request)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 401
+    
+    if not is_admin(admin_id):
+        return jsonify({'error': 'Unauthorized. Admin access required.'}), 403
+    
+    data = request.json
+    payment_id = data.get('payment_id')
+    user_id = data.get('user_id')
+    credits = data.get('credits')
+    
+    if not payment_id or not user_id or not credits:
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Update payment status
+    payment_ref = db.collection('payment_requests').document(payment_id)
+    payment_ref.update({
+        'status': 'approved',
+        'approved_by': admin_id,
+        'approved_at': datetime.now(timezone.utc).isoformat(),
+        'updated_at': datetime.now(timezone.utc).isoformat()
+    })
+    
+    # Add credits to user
+    user_ref = db.collection('users').document(user_id)
+    user = user_ref.get()
+    current_credits = user.to_dict().get('credits', 0)
+    user_ref.update({
+        'credits': current_credits + credits,
+        'updated_at': datetime.now(timezone.utc).isoformat()
+    })
+    
+    print(f"✅ Payment {payment_id} approved by admin {admin_id}. Added {credits} credits to user {user_id}")
+    
+    return jsonify({'status': 'success', 'message': 'Payment approved and credits added'}), 200
+
+
+@fayda_bp.route('/admin/reject-payment', methods=['POST'])
+def admin_reject_payment_request():
+    """Admin rejects payment request"""
+    try:
+        admin_id = verify_token(request)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 401
+    
+    if not is_admin(admin_id):
+        return jsonify({'error': 'Unauthorized. Admin access required.'}), 403
+    
+    data = request.json
+    payment_id = data.get('payment_id')
+    
+    if not payment_id:
+        return jsonify({'error': 'Missing payment_id'}), 400
+    
+    # Update payment status
+    payment_ref = db.collection('payment_requests').document(payment_id)
+    payment_ref.update({
+        'status': 'rejected',
+        'rejected_by': admin_id,
+        'rejected_at': datetime.now(timezone.utc).isoformat(),
+        'updated_at': datetime.now(timezone.utc).isoformat()
+    })
+    
+    print(f"❌ Payment {payment_id} rejected by admin {admin_id}")
+    
+    return jsonify({'status': 'success', 'message': 'Payment rejected'}), 200
+
+
+@fayda_bp.route('/admin/add-credits', methods=['POST'])
+def admin_add_credits_to_user():
+    """Admin manually adds credits to a user"""
+    try:
+        admin_id = verify_token(request)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 401
+    
+    if not is_admin(admin_id):
+        return jsonify({'error': 'Unauthorized. Admin access required.'}), 403
+    
+    data = request.json
+    user_id = data.get('user_id')
+    credits = data.get('credits')
+    
+    if not user_id or not credits or credits < 1:
+        return jsonify({'error': 'Invalid user_id or credits amount'}), 400
+    
+    # Add credits to user
+    user_ref = db.collection('users').document(user_id)
+    user = user_ref.get()
+    
+    if not user.exists:
+        return jsonify({'error': 'User not found'}), 404
+    
+    current_credits = user.to_dict().get('credits', 0)
+    user_ref.update({
+        'credits': current_credits + credits,
+        'updated_at': datetime.now(timezone.utc).isoformat()
+    })
+    
+    print(f"✅ Admin {admin_id} added {credits} credits to user {user_id}")
+    
+    return jsonify({'status': 'success', 'message': f'Added {credits} credits to user'}), 200

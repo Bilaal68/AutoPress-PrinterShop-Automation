@@ -14,27 +14,30 @@ db = firestore.client()
 # ============================================================
 
 def verify_token(request):
-    """TEMPORARY: skip token check during development"""
-    return "test@autopress.com"
-
-# def verify_token(request):
-#     """Verify Firebase ID token from request header"""
-#     auth_header = request.headers.get('Authorization', '')
-#     if not auth_header.startswith('Bearer '):
-#         raise Exception('No token provided')
-#     token = auth_header.replace('Bearer ', '')
-#     try:
-#         decoded = auth.verify_id_token(token)
-#         return decoded['email']
-#     except Exception as e:
-#         raise Exception(f'Invalid token: {str(e)}')
+    """Verify Firebase ID token and return user UID"""
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        raise Exception('No token provided')
+    
+    token = auth_header.replace('Bearer ', '')
+    
+    try:
+        decoded = auth.verify_id_token(token)
+        # Return the user's UID (not email)
+        user_uid = decoded.get('uid')
+        if not user_uid:
+            raise Exception('No UID in token')
+        print(f"✅ Verified user UID: {user_uid}")
+        return user_uid
+    except Exception as e:
+        raise Exception(f'Invalid token: {str(e)}')
 
 # ============================================================
 # USER
 # ============================================================
 
 def get_user(user_id):
-    """Get user document from Firestore"""
+    """Get user document from Firestore by UID"""
     doc = db.collection('users').document(user_id).get()
     if doc.exists:
         return doc.to_dict()
@@ -61,6 +64,7 @@ def deduct_credits(user_id, amount):
         return False, f"Insufficient credits. You have {current_credits} but need {amount}"
 
     user_ref.update({'credits': current_credits - amount})
+    print(f"✅ Credits deducted for user {user_id}: {current_credits} → {current_credits - amount}")
     return True, current_credits - amount
 
 # ============================================================

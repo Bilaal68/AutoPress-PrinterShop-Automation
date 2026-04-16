@@ -3,18 +3,27 @@ import { auth } from './firebase';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-// Helper function to get Firebase token
+// Helper function to get Firebase token - FIXED with better error handling
 const getToken = async () => {
+  // Wait a bit for auth to initialize
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
   const user = auth.currentUser;
-  if (user) {
-    try {
-      return await user.getIdToken();
-    } catch (error) {
-      console.error('Error getting token:', error);
-      return null;
-    }
+  console.log('🔑 getToken called, user:', user?.email || 'No user');
+  
+  if (!user) {
+    console.log('❌ No user found in auth');
+    return null;
   }
-  return null;
+  
+  try {
+    const token = await user.getIdToken();
+    console.log('✅ Token obtained, length:', token.length);
+    return token;
+  } catch (error) {
+    console.error('❌ Error getting token:', error);
+    return null;
+  }
 };
 
 // Helper function to handle responses
@@ -62,13 +71,22 @@ const api = {
   // ============================================================
 
   async extractImageData(frontImage, backImage, profileImage, options = {}) {
+    const token = await getToken();
+    console.log('📤 extractImageData - token exists:', !!token);
+    
     const formData = new FormData();
     formData.append('front_image', frontImage);
     formData.append('back_image', backImage);
     formData.append('photo_qr_image', profileImage);
 
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_URL}/extract-image-data`, {
       method: 'POST',
+      headers: headers,
       body: formData,
     });
     
@@ -86,12 +104,18 @@ const api = {
 
   async addToQueue(jobData) {
     const token = await getToken();
+    console.log('📤 addToQueue - token exists:', !!token);
+    
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${API_URL}/add-to-queue`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-      },
+      headers: headers,
       body: JSON.stringify(jobData),
     });
     return handleResponse(response);
@@ -99,9 +123,15 @@ const api = {
 
   async getJobStatus(jobId) {
     const token = await getToken();
+    
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${API_URL}/queue-status/${jobId}`, {
       method: 'GET',
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      headers: headers,
     });
     const result = await handleResponse(response);
     
@@ -117,12 +147,17 @@ const api = {
 
   async getGeneratedPDF(jobId) {
     const token = await getToken();
+    
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${API_URL}/process-queue`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-      },
+      headers: headers,
       body: JSON.stringify({ job_id: jobId }),
     });
     return response.blob();
@@ -130,12 +165,18 @@ const api = {
 
   async generatePDF(cardsData) {
     const token = await getToken();
+    console.log('📤 generatePDF - token exists:', !!token);
+    
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${API_URL}/generate-final-id`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-      },
+      headers: headers,
       body: JSON.stringify({ cards: cardsData }),
     });
     return response.blob();
@@ -151,12 +192,16 @@ const api = {
       imageData = profileImage.split(',')[1];
     }
     
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${API_URL}/process-photo`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-      },
+      headers: headers,
       body: JSON.stringify({
         profile_image: imageData,
         remove_bg: removeBg,
@@ -176,9 +221,14 @@ const api = {
       formData.append(`pdf_${index + 1}`, file);
     });
     
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${API_URL}/extract-pdfs-data`, {
       method: 'POST',
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      headers: headers,
       body: formData,
     });
     
@@ -208,9 +258,14 @@ const api = {
     formData.append('color_profile', colorProfile);
     formData.append('remove_bg', removeBg);
     
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${API_URL}/process-pdf-template`, {
       method: 'POST',
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      headers: headers,
       body: formData,
     });
     
@@ -226,21 +281,32 @@ const api = {
 
   async getWeddingTemplates() {
     const token = await getToken();
+    
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${API_URL}/api/wedding/wedding/templates`, {
       method: 'GET',
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      headers: headers,
     });
     return handleResponse(response);
   },
 
   async generateWeddingCard(templateId, quantity, language, formData) {
     const token = await getToken();
+    
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${API_URL}/api/wedding/wedding/generate`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-      },
+      headers: headers,
       body: JSON.stringify({
         template_id: templateId,
         quantity: quantity,
@@ -257,9 +323,15 @@ const api = {
 
   async getWeddingJobs() {
     const token = await getToken();
+    
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(`${API_URL}/api/wedding/wedding/my-jobs`, {
       method: 'GET',
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      headers: headers,
     });
     return handleResponse(response);
   },

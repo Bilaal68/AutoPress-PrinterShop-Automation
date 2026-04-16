@@ -13,6 +13,7 @@ import {
   Loader,
   Download,
 } from "lucide-react";
+import api from "../../services/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -37,7 +38,7 @@ const PdfMode = () => {
     setGeneratedPdf(null);
   };
 
-  // Process PDFs - Call the working backend endpoint directly
+  // Process PDFs - Call backend with token
   const handleProcess = async () => {
     if (pdfFiles.length === 0) {
       alert("Please upload at least one PDF");
@@ -48,7 +49,7 @@ const PdfMode = () => {
     setProgressMessage("Uploading PDFs to server...");
 
     try {
-      setProgressMessage("Processing PDFs with AI...");
+      setProgressMessage("Extracting data from PDFs with AI...");
 
       // Create FormData for PDF upload
       const formData = new FormData();
@@ -58,9 +59,13 @@ const PdfMode = () => {
       formData.append("color_profile", colorProfile);
       formData.append("remove_bg", removeBg);
 
-      // Call the working process-pdf-template endpoint
+      // Get the token
+      const token = (await api.getToken?.()) || (await getTokenFromFirebase());
+
+      // Call the process-pdf-template endpoint with token
       const response = await fetch(`${API_URL}/process-pdf-template`, {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
 
@@ -86,6 +91,16 @@ const PdfMode = () => {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // Helper function to get token
+  const getTokenFromFirebase = async () => {
+    const { auth } = await import("../../services/firebase");
+    const user = auth.currentUser;
+    if (user) {
+      return await user.getIdToken();
+    }
+    return null;
   };
 
   const handleDownload = () => {

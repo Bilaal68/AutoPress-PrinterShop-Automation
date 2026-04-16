@@ -4,20 +4,66 @@ import time
 import json
 import base64
 import io
+import re
+import itertools
 from PIL import Image
 from dotenv import load_dotenv
 
 load_dotenv()
 
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-
-MODELS_TO_TRY = [
-    'gemini-3-flash-preview',        # ✅ real — best multimodal
-    'gemini-3.1-flash-lite-preview', # ✅ real — fastest, cheapest
-    'gemini-2.5-flash',              # ✅ stable fallback
+# ============================================================
+# API KEY ROTATION
+# ============================================================
+GEMINI_API_KEYS = [
+    os.getenv('GEMINI_API_KEY_1'),
+    os.getenv('GEMINI_API_KEY_2'),
+    os.getenv('GEMINI_API_KEY_3'),
+    os.getenv('GEMINI_API_KEY_4'),
+    os.getenv('GEMINI_API_KEY_5'),
+    os.getenv('GEMINI_API_KEY_6'),
+    os.getenv('GEMINI_API_KEY_7'),
+    os.getenv('GEMINI_API_KEY_8'),
+    os.getenv('GEMINI_API_KEY_9'),
+    os.getenv('GEMINI_API_KEY_10'),
+    os.getenv('GEMINI_API_KEY_11'),
+    os.getenv('GEMINI_API_KEY_12'),
+    os.getenv('GEMINI_API_KEY_13'),
+    os.getenv('GEMINI_API_KEY_14'),
+    os.getenv('GEMINI_API_KEY_15'),
+    os.getenv('GEMINI_API_KEY_16'),
+    os.getenv('GEMINI_API_KEY_17'),
+    os.getenv('GEMINI_API_KEY_18'),
+    os.getenv('GEMINI_API_KEY_19'),
+    os.getenv('GEMINI_API_KEY_20'),
 ]
 
-# System instruction forces JSON only output
+# ── Filter out None/empty keys ──
+GEMINI_API_KEYS = [k for k in GEMINI_API_KEYS if k]
+
+if not GEMINI_API_KEYS:
+    raise Exception("No Gemini API keys found in .env!")
+
+print(f"✅ Loaded {len(GEMINI_API_KEYS)} Gemini API keys")
+
+# ── Rotating key cycle ──
+_key_cycle = itertools.cycle(GEMINI_API_KEYS)
+
+def get_next_key():
+    """Get next API key in rotation"""
+    return next(_key_cycle)
+
+# ============================================================
+# MODELS
+# ============================================================
+MODELS_TO_TRY = [
+    'gemini-3-flash-preview',
+    'gemini-3.1-flash-lite-preview',
+    'gemini-2.5-flash',
+]
+
+# ============================================================
+# PROMPTS
+# ============================================================
 JSON_SYSTEM_INSTRUCTION = "You are a precise data extractor. Always return output as valid JSON only. Never add markdown, explanations, or any text outside the JSON object."
 
 TEXT_EXTRACTION_PROMPT = """
@@ -127,6 +173,10 @@ Return ONLY this JSON:
 Make sure x1 < x2 and y1 < y2.
 """
 
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
+
 def image_to_base64(pil_image, format='JPEG'):
     """Convert PIL image to base64 string"""
     buffer = io.BytesIO()
@@ -137,7 +187,6 @@ def image_to_base64(pil_image, format='JPEG'):
 def parse_gemini_json(response_text):
     """Clean and parse JSON from Gemini response"""
     text = response_text.strip()
-    # Remove markdown code blocks if present
     if text.startswith('```'):
         text = text.split('```')[1]
         if text.startswith('json'):
@@ -146,140 +195,162 @@ def parse_gemini_json(response_text):
 
 def crop_image(img, coords, img_width, img_height):
     """Crop image using normalized coordinates (0-1000) from Gemini"""
-
-    # Convert normalized (0-1000) to actual pixels
     x1 = int((coords['x1'] / 1000) * img_width)
     y1 = int((coords['y1'] / 1000) * img_height)
     x2 = int((coords['x2'] / 1000) * img_width)
     y2 = int((coords['y2'] / 1000) * img_height)
 
-    # Auto fix flipped coordinates
     if x1 > x2: x1, x2 = x2, x1
     if y1 > y2: y1, y2 = y2, y1
 
-    # Keep within image bounds
     x1 = max(0, x1)
     y1 = max(0, y1)
     x2 = min(img_width, x2)
     y2 = min(img_height, y2)
 
-    # Make sure crop area is valid
     if x2 <= x1: x2 = x1 + 10
     if y2 <= y1: y2 = y1 + 10
 
     print(f"✂️  Cropping: ({x1},{y1}) → ({x2},{y2})")
     return img.crop((x1, y1, x2, y2))
 
-def get_profile_coords(img, model_name):
+def call_gemini_with_rotation(parts, system_instruction=None):
+    """
+    Call Gemini with automatic API key rotation.
+    Tries all keys before giving up.
+    """
+    last_error   = None
+    max_attempts = len(GEMINI_API_KEYS)
+
+    for attempt in range(max_attempts):
+        try:
+            api_key = get_next_key()
+            genai.configure(api_key=api_key)
+
+            for model_name in MODELS_TO_TRY:
+                try:
+                    if system_instruction:
+                        model = genai.GenerativeModel(
+                            model_name=model_name,
+                            system_instruction=system_instruction
+                        )
+                    else:
+                        model = genai.GenerativeModel(model_name=model_name)
+
+                    response = model.generate_content(parts)
+                    print(f"✅ Gemini success — key #{attempt+1} | model: {model_name}")
+                    return response
+
+                except Exception as model_err:
+                    err_str = str(model_err).lower()
+                    if '503' in err_str or 'unavailable' in err_str:
+                        print(f"⚠️ {model_name} unavailable, trying next model...")
+                        continue
+                    else:
+                        raise model_err
+
+        except Exception as e:
+            last_error = e
+            err_str    = str(e).lower()
+
+            if '429' in err_str or 'quota' in err_str or 'rate' in err_str:
+                print(f"⚠️ Key #{attempt+1} hit rate limit → rotating to next key...")
+                continue
+            elif '503' in err_str or 'unavailable' in err_str:
+                wait = 2 ** min(attempt, 3)
+                print(f"⚠️ Service unavailable, retrying in {wait}s...")
+                time.sleep(wait)
+                continue
+            else:
+                print(f"❌ Non-retryable error: {e}")
+                raise e
+
+    raise Exception(f"All {max_attempts} API keys exhausted. Last error: {last_error}")
+
+def get_profile_coords(img, _model_name=None):
     """Ask Gemini for profile photo normalized coordinates"""
-    # Use system instruction for clean JSON output
-    model = genai.GenerativeModel(
-        model_name=model_name,
+    response = call_gemini_with_rotation(
+        [img, PROFILE_COORD_PROMPT],
         system_instruction=JSON_SYSTEM_INSTRUCTION
     )
-    response = model.generate_content([img, PROFILE_COORD_PROMPT])
     coords = parse_gemini_json(response.text)
     print(f"📦 Profile coords (normalized): {coords}")
     return coords
 
-def get_qr_coords(img, model_name):
+def get_qr_coords(img, _model_name=None):
     """Ask Gemini for QR code normalized coordinates"""
-    # Use system instruction for clean JSON output
-    model = genai.GenerativeModel(
-        model_name=model_name,
+    response = call_gemini_with_rotation(
+        [img, QR_COORD_PROMPT],
         system_instruction=JSON_SYSTEM_INSTRUCTION
     )
-    response = model.generate_content([img, QR_COORD_PROMPT])
     coords = parse_gemini_json(response.text)
     print(f"📦 QR coords (normalized): {coords}")
     return coords
 
+# ============================================================
+# MAIN EXTRACTION — IMAGE MODE
+# ============================================================
+
 def extract_from_images(front_image, back_image, photo_qr_image):
     """
-    Extract all Fayda ID data in one flow:
-    - Text fields (all 15 fields)
+    Extract all Fayda ID data from 3 images:
+    - Text fields
     - Profile photo as base64
     - QR code as base64
     """
-
-    # Open all images
     front = Image.open(front_image)
-    back = Image.open(back_image)
+    back  = Image.open(back_image)
 
-    # Open photo_qr and fully load into memory
     photo_qr_image.seek(0)
     photo_qr = Image.open(photo_qr_image)
     photo_qr.load()
     img_width, img_height = photo_qr.size
     print(f"📐 photo_qr size: {img_width}x{img_height}")
 
-    last_error = None
+    # ── Step 1: Extract text fields ──
+    print("📝 Extracting text fields...")
+    text_response = call_gemini_with_rotation(
+        [front, back, photo_qr, TEXT_EXTRACTION_PROMPT],
+        system_instruction=JSON_SYSTEM_INSTRUCTION
+    )
 
-    for model_name in MODELS_TO_TRY:
-        for attempt in range(3):
-            try:
-                print(f"🤖 Trying {model_name} attempt {attempt + 1}...")
+    result = parse_gemini_json(text_response.text)
 
-                # Step 1 — Extract text fields with system instruction
-                print("📝 Extracting text fields...")
-                text_model = genai.GenerativeModel(
-                    model_name=model_name,
-                    system_instruction=JSON_SYSTEM_INSTRUCTION
-                )
-                text_response = text_model.generate_content([
-                    front,
-                    back,
-                    photo_qr,
-                    TEXT_EXTRACTION_PROMPT
-                ])
+    if 'extracted_texts' not in result:
+        raise Exception('Missing extracted_texts in response')
 
-                result = parse_gemini_json(text_response.text)
+    extracted_texts = result['extracted_texts']
+    print(f"✅ Text extracted successfully")
 
-                if 'extracted_texts' not in result:
-                    raise Exception('Missing extracted_texts in response')
+    # ── Step 2: Get profile coordinates and crop ──
+    print("👤 Extracting profile image...")
+    profile_coords = get_profile_coords(photo_qr)
+    profile_crop   = crop_image(
+        photo_qr,
+        profile_coords,
+        img_width,
+        img_height
+    )
+    profile_b64 = image_to_base64(profile_crop)
+    print(f"✅ Profile extracted successfully")
 
-                extracted_texts = result['extracted_texts']
-                print(f"✅ Text extracted successfully")
+    # ── Step 3: Get QR coordinates and crop ──
+    print("📱 Extracting QR code...")
+    qr_coords = get_qr_coords(photo_qr)
+    qr_crop   = crop_image(
+        photo_qr,
+        qr_coords,
+        img_width,
+        img_height
+    )
+    qr_b64 = image_to_base64(qr_crop)
+    print(f"✅ QR extracted successfully")
 
-                # Step 2 — Get profile coordinates and crop
-                print("👤 Extracting profile image...")
-                profile_coords = get_profile_coords(photo_qr, model_name)
-                profile_crop = crop_image(
-                    photo_qr,
-                    profile_coords,
-                    img_width,
-                    img_height
-                )
-                profile_b64 = image_to_base64(profile_crop)
-                print(f"✅ Profile extracted successfully")
+    return extracted_texts, profile_b64, qr_b64
 
-                # Step 3 — Get QR coordinates and crop
-                print("📱 Extracting QR code...")
-                qr_coords = get_qr_coords(photo_qr, model_name)
-                qr_crop = crop_image(
-                    photo_qr,
-                    qr_coords,
-                    img_width,
-                    img_height
-                )
-                qr_b64 = image_to_base64(qr_crop)
-                print(f"✅ QR extracted successfully")
-
-                return extracted_texts, profile_b64, qr_b64
-
-            except Exception as e:
-                last_error = str(e)
-
-                if '503' in str(e) or 'UNAVAILABLE' in str(e):
-                    wait = 2 ** attempt
-                    print(f"⚠️ {model_name} attempt {attempt+1} failed, retrying in {wait}s...")
-                    time.sleep(wait)
-                    continue
-                else:
-                    print(f"❌ Error with {model_name}: {e}")
-                    break
-
-    raise Exception(f"All Gemini models failed: {last_error}")
+# ============================================================
+# MAIN EXTRACTION — PDF MODE
+# ============================================================
 
 def extract_from_pdf(pdf_file):
     """
@@ -287,9 +358,6 @@ def extract_from_pdf(pdf_file):
     Converts PDF page to image first, then uses Gemini to extract.
     """
     import fitz
-    import base64
-    import io
-    from PIL import Image
 
     print(f"📄 Processing PDF: {pdf_file.filename}")
 
@@ -297,16 +365,14 @@ def extract_from_pdf(pdf_file):
     try:
         pdf_bytes = pdf_file.read()
         doc       = fitz.open(stream=pdf_bytes, filetype='pdf')
-        page      = doc[0]  # Page 1 only
+        page      = doc[0]
 
-        # Render at 300 DPI for best quality
         mat = fitz.Matrix(300/72, 300/72)
         pix = page.get_pixmap(matrix=mat)
 
         print(f"📐 PDF page size: {page.rect.width} x {page.rect.height} points")
         print(f"🖼️  Rendered at 300dpi: {pix.width} x {pix.height} pixels")
 
-        # Convert to PIL image
         img_data  = pix.tobytes('png')
         pil_image = Image.open(io.BytesIO(img_data))
         doc.close()
@@ -314,12 +380,10 @@ def extract_from_pdf(pdf_file):
     except Exception as e:
         raise Exception(f"Failed to convert PDF to image: {str(e)}")
 
-    # ── Step 2: Scale factor (PDF coords → pixel coords) ──
-    # PDF coordinates in the mapping are in points
-    # We rendered at 300 DPI so scale = 300/72
+    # ── Step 2: Scale factor ──
     SCALE = 300 / 72
 
-    # ── Step 3: Crop fields using the mapping ──
+    # ── Step 3: Field coordinates ──
     PDF_FIELD_MAP = {
         "fullNameEnglish":     {"x": 166, "y": 226, "w": 84,  "h": 18},
         "fullNameAmharic":     {"x": 165, "y": 216, "w": 85,  "h": 15},
@@ -349,7 +413,7 @@ def extract_from_pdf(pdf_file):
         "qrCode":       {"x": 111, "y": 410, "w": 166, "h": 164},
     }
 
-    # ── Step 4: Crop and encode all text region images ──
+    # ── Step 4: Crop text regions ──
     cropped_regions = {}
     for field_name, coords in PDF_FIELD_MAP.items():
         x1 = int(coords['x'] * SCALE)
@@ -357,7 +421,6 @@ def extract_from_pdf(pdf_file):
         x2 = int((coords['x'] + coords['w']) * SCALE)
         y2 = int((coords['y'] + coords['h']) * SCALE)
 
-        # Add padding for better OCR
         padding = 10
         x1 = max(0, x1 - padding)
         y1 = max(0, y1 - padding)
@@ -366,7 +429,6 @@ def extract_from_pdf(pdf_file):
 
         cropped = pil_image.crop((x1, y1, x2, y2))
 
-        # Upscale small regions for better OCR
         if cropped.width < 200:
             scale_up = 200 / cropped.width
             new_w    = int(cropped.width  * scale_up)
@@ -399,7 +461,7 @@ def extract_from_pdf(pdf_file):
         elif field_name == 'qrCode':
             qr_b64 = b64
 
-    # ── Step 6: Send all cropped regions to Gemini for OCR ──
+    # ── Step 6: PDF extraction prompt ──
     PDF_EXTRACTION_PROMPT = """
 You are an OCR expert reading cropped regions from an Ethiopian Fayda National ID card PDF.
 
@@ -439,33 +501,10 @@ Return this exact JSON structure:
 }
 """
 
-    # Build Gemini content with all cropped images
-    content_parts = [PDF_EXTRACTION_PROMPT]
-
-    field_order = list(PDF_FIELD_MAP.keys())
-    for field_name in field_order:
-        b64 = cropped_regions[field_name]
-        content_parts.append(f"\n[Field: {field_name}]")
-        content_parts.append({
-            "inline_data": {
-                "mime_type": "image/png",
-                "data":      b64
-            }
-        })
-
-    # ── Step 7: Call Gemini ──
-    import google.generativeai as genai
-    import os
-    import json
-    import re
-
-    genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-    model = genai.GenerativeModel('gemini-2.5-flash')
-
-    print("🤖 Sending PDF regions to Gemini for OCR...")
-
-    # Build proper Gemini parts
+    # ── Step 7: Build Gemini parts ──
+    field_order  = list(PDF_FIELD_MAP.keys())
     gemini_parts = [PDF_EXTRACTION_PROMPT]
+
     for field_name in field_order:
         b64      = cropped_regions[field_name]
         img_data = base64.b64decode(b64)
@@ -475,23 +514,23 @@ Return this exact JSON structure:
             "data":      img_data
         })
 
-    try:
-        response = model.generate_content(gemini_parts)
-        raw_text = response.text.strip()
-        print(f"✅ Gemini response received")
+    # ── Step 8: Call Gemini with rotation ──
+    print("🤖 Sending PDF regions to Gemini for OCR...")
 
-        # Clean JSON
-        raw_text = re.sub(r'```json\s*', '', raw_text)
-        raw_text = re.sub(r'```\s*', '', raw_text)
-        raw_text = raw_text.strip()
+    response = call_gemini_with_rotation(
+        gemini_parts,
+        system_instruction=JSON_SYSTEM_INSTRUCTION
+    )
 
-        extracted = json.loads(raw_text)
+    raw_text = response.text.strip()
+    raw_text = re.sub(r'```json\s*', '', raw_text)
+    raw_text = re.sub(r'```\s*',     '', raw_text)
+    raw_text = raw_text.strip()
 
-    except Exception as e:
-        print(f"❌ Gemini OCR error: {e}")
-        raise Exception(f"Gemini OCR failed: {str(e)}")
+    extracted = json.loads(raw_text)
+    print(f"✅ Gemini PDF response received")
 
-    # ── Step 8: Rename keys to match our system ──
+    # ── Step 9: Rename keys ──
     extracted_texts = {
         "amharic_name":        extracted.get("fullNameAmharic",     ""),
         "english_name":        extracted.get("fullNameEnglish",     ""),
