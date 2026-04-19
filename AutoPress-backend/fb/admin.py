@@ -1,9 +1,29 @@
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
+import os
+import json
 
 # ── Initialize Firebase Admin only once ──
 if not firebase_admin._apps:
-    cred = credentials.Certificate('serviceAccountKey.json')
+    # Try to get service account from environment variable first (Cloud Run)
+    service_account_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT')
+    
+    if service_account_json:
+        # Parse the JSON string from environment variable
+        try:
+            cred_dict = json.loads(service_account_json)
+            cred = credentials.Certificate(cred_dict)
+            print("✅ Firebase Admin initialized from environment variable")
+        except Exception as e:
+            print(f"⚠️ Error parsing FIREBASE_SERVICE_ACCOUNT: {e}")
+            # Fallback to local file
+            cred = credentials.Certificate('serviceAccountKey.json')
+            print("✅ Firebase Admin initialized from local file (fallback)")
+    else:
+        # Fallback to local file (development)
+        cred = credentials.Certificate('serviceAccountKey.json')
+        print("✅ Firebase Admin initialized from local file")
+    
     firebase_admin.initialize_app(cred)
 
 # ── Firestore client ──

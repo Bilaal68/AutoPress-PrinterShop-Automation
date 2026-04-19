@@ -1,4 +1,6 @@
-import google.generativeai as genai
+import warnings
+from google import genai
+from google.genai import types
 import os
 import time
 import json
@@ -8,6 +10,9 @@ import re
 import itertools
 from PIL import Image
 from dotenv import load_dotenv
+
+# Suppress deprecation warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 load_dotenv()
 
@@ -41,24 +46,27 @@ GEMINI_API_KEYS = [
 GEMINI_API_KEYS = [k for k in GEMINI_API_KEYS if k]
 
 if not GEMINI_API_KEYS:
-    raise Exception("No Gemini API keys found in .env!")
-
-print(f"✅ Loaded {len(GEMINI_API_KEYS)} Gemini API keys")
+    print("⚠️ No Gemini API keys found in environment variables!")
+    print("⚠️ Please set GEMINI_API_KEY_1 or GEMINI_API_KEYS")
+else:
+    print(f"✅ Loaded {len(GEMINI_API_KEYS)} Gemini API keys")
 
 # ── Rotating key cycle ──
-_key_cycle = itertools.cycle(GEMINI_API_KEYS)
+_key_cycle = itertools.cycle(GEMINI_API_KEYS) if GEMINI_API_KEYS else None
 
 def get_next_key():
     """Get next API key in rotation"""
+    if not _key_cycle or not GEMINI_API_KEYS:
+        raise Exception("No Gemini API keys configured")
     return next(_key_cycle)
 
 # ============================================================
 # MODELS
 # ============================================================
 MODELS_TO_TRY = [
-    'gemini-3-flash-preview',
-    'gemini-3.1-flash-lite-preview',
-    'gemini-2.5-flash',
+    'gemini-2.0-flash-exp',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
 ]
 
 # ============================================================
@@ -177,7 +185,7 @@ Make sure x1 < x2 and y1 < y2.
 # HELPER FUNCTIONS
 # ============================================================
 
-def image_to_base64(pil_image, format='JPEG'):
+def image_to_base64(pil_image, format='PNG'):
     """Convert PIL image to base64 string"""
     buffer = io.BytesIO()
     pil_image.save(buffer, format=format)
@@ -216,28 +224,49 @@ def crop_image(img, coords, img_width, img_height):
 
 def call_gemini_with_rotation(parts, system_instruction=None):
     """
-    Call Gemini with automatic API key rotation.
-    Tries all keys before giving up.
+    Call Gemini with automatic API key rotation using the new google-genai package.
     """
-    last_error   = None
+    if not GEMINI_API_KEYS:
+        raise Exception("No Gemini API keys configured. Please set GEMINI_API_KEY_1")
+    
+    last_error = None
     max_attempts = len(GEMINI_API_KEYS)
 
     for attempt in range(max_attempts):
         try:
             api_key = get_next_key()
-            genai.configure(api_key=api_key)
+            
+            # Create client with the new API
+            client = genai.Client(api_key=api_key)
+            print(f"🔑 Using key #{attempt+1}")
 
             for model_name in MODELS_TO_TRY:
                 try:
-                    if system_instruction:
-                        model = genai.GenerativeModel(
-                            model_name=model_name,
-                            system_instruction=system_instruction
+                    # Prepare content based on parts
+                    content_parts = []
+                    for part in parts:
+                        if isinstance(part, str):
+                            content_parts.append(part)
+                        elif isinstance(part, dict) and 'mime_type' in part:
+                            # This is an image
+                            content_parts.append(
+                                types.Part.from_bytes(
+                                    data=part['data'],
+                                    mime_type=part['mime_type']
+                                )
+                            )
+                        else:
+                            content_parts.append(part)
+                    
+                    # Make the API call using the new syntax
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=content_parts,
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_instruction if system_instruction else None
                         )
-                    else:
-                        model = genai.GenerativeModel(model_name=model_name)
-
-                    response = model.generate_content(parts)
+                    )
+                    
                     print(f"✅ Gemini success — key #{attempt+1} | model: {model_name}")
                     return response
 
@@ -251,7 +280,7 @@ def call_gemini_with_rotation(parts, system_instruction=None):
 
         except Exception as e:
             last_error = e
-            err_str    = str(e).lower()
+            err_str = str(e).lower()
 
             if '429' in err_str or 'quota' in err_str or 'rate' in err_str:
                 print(f"⚠️ Key #{attempt+1} hit rate limit → rotating to next key...")
@@ -299,7 +328,7 @@ def extract_from_images(front_image, back_image, photo_qr_image):
     - QR code as base64
     """
     front = Image.open(front_image)
-    back  = Image.open(back_image)
+    back = Image.open(back_image)
 
     photo_qr_image.seek(0)
     photo_qr = Image.open(photo_qr_image)
@@ -307,10 +336,24 @@ def extract_from_images(front_image, back_image, photo_qr_image):
     img_width, img_height = photo_qr.size
     print(f"📐 photo_qr size: {img_width}x{img_height}")
 
+    # Convert images to bytes for the API
+    front_bytes = front_image.read() if hasattr(front_image, 'read') else open(front_image, 'rb').read()
+    back_bytes = back_image.read() if hasattr(back_image, 'read') else open(back_image, 'rb').read()
+    photo_bytes = photo_qr_image.read() if hasattr(photo_qr_image, 'read') else open(photo_qr_image, 'rb').read()
+
     # ── Step 1: Extract text fields ──
     print("📝 Extracting text fields...")
+    
+    # Build parts for the API
+    parts = [
+        TEXT_EXTRACTION_PROMPT,
+        types.Part.from_bytes(data=front_bytes, mime_type='image/jpeg'),
+        types.Part.from_bytes(data=back_bytes, mime_type='image/jpeg'),
+        types.Part.from_bytes(data=photo_bytes, mime_type='image/jpeg'),
+    ]
+    
     text_response = call_gemini_with_rotation(
-        [front, back, photo_qr, TEXT_EXTRACTION_PROMPT],
+        parts,
         system_instruction=JSON_SYSTEM_INSTRUCTION
     )
 
@@ -325,7 +368,7 @@ def extract_from_images(front_image, back_image, photo_qr_image):
     # ── Step 2: Get profile coordinates and crop ──
     print("👤 Extracting profile image...")
     profile_coords = get_profile_coords(photo_qr)
-    profile_crop   = crop_image(
+    profile_crop = crop_image(
         photo_qr,
         profile_coords,
         img_width,
@@ -337,7 +380,7 @@ def extract_from_images(front_image, back_image, photo_qr_image):
     # ── Step 3: Get QR coordinates and crop ──
     print("📱 Extracting QR code...")
     qr_coords = get_qr_coords(photo_qr)
-    qr_crop   = crop_image(
+    qr_crop = crop_image(
         photo_qr,
         qr_coords,
         img_width,
@@ -364,8 +407,8 @@ def extract_from_pdf(pdf_file):
     # ── Step 1: Convert PDF page 1 to image ──
     try:
         pdf_bytes = pdf_file.read()
-        doc       = fitz.open(stream=pdf_bytes, filetype='pdf')
-        page      = doc[0]
+        doc = fitz.open(stream=pdf_bytes, filetype='pdf')
+        page = doc[0]
 
         mat = fitz.Matrix(300/72, 300/72)
         pix = page.get_pixmap(matrix=mat)
@@ -373,7 +416,7 @@ def extract_from_pdf(pdf_file):
         print(f"📐 PDF page size: {page.rect.width} x {page.rect.height} points")
         print(f"🖼️  Rendered at 300dpi: {pix.width} x {pix.height} pixels")
 
-        img_data  = pix.tobytes('png')
+        img_data = pix.tobytes('png')
         pil_image = Image.open(io.BytesIO(img_data))
         doc.close()
 
@@ -409,7 +452,7 @@ def extract_from_pdf(pdf_file):
     }
 
     IMAGE_FIELD_MAP = {
-        "profilePhoto": {"x": 55,  "y": 100, "w": 86,  "h": 120},
+        "profilePhoto": {"x": 55,  "y": 100, "w": 86, "h": 120},
         "qrCode":       {"x": 111, "y": 410, "w": 166, "h": 164},
     }
 
@@ -424,16 +467,16 @@ def extract_from_pdf(pdf_file):
         padding = 10
         x1 = max(0, x1 - padding)
         y1 = max(0, y1 - padding)
-        x2 = min(pil_image.width,  x2 + padding)
+        x2 = min(pil_image.width, x2 + padding)
         y2 = min(pil_image.height, y2 + padding)
 
         cropped = pil_image.crop((x1, y1, x2, y2))
 
         if cropped.width < 200:
             scale_up = 200 / cropped.width
-            new_w    = int(cropped.width  * scale_up)
-            new_h    = int(cropped.height * scale_up)
-            cropped  = cropped.resize((new_w, new_h), Image.LANCZOS)
+            new_w = int(cropped.width * scale_up)
+            new_h = int(cropped.height * scale_up)
+            cropped = cropped.resize((new_w, new_h), Image.LANCZOS)
 
         buffer = io.BytesIO()
         cropped.save(buffer, format='PNG')
@@ -443,7 +486,7 @@ def extract_from_pdf(pdf_file):
 
     # ── Step 5: Crop profile and QR images ──
     profile_b64 = None
-    qr_b64      = None
+    qr_b64 = None
 
     for field_name, coords in IMAGE_FIELD_MAP.items():
         x1 = int(coords['x'] * SCALE)
@@ -452,7 +495,7 @@ def extract_from_pdf(pdf_file):
         y2 = int((coords['y'] + coords['h']) * SCALE)
 
         cropped = pil_image.crop((x1, y1, x2, y2))
-        buffer  = io.BytesIO()
+        buffer = io.BytesIO()
         cropped.save(buffer, format='PNG')
         b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
@@ -502,17 +545,14 @@ Return this exact JSON structure:
 """
 
     # ── Step 7: Build Gemini parts ──
-    field_order  = list(PDF_FIELD_MAP.keys())
+    field_order = list(PDF_FIELD_MAP.keys())
     gemini_parts = [PDF_EXTRACTION_PROMPT]
 
     for field_name in field_order:
-        b64      = cropped_regions[field_name]
+        b64 = cropped_regions[field_name]
         img_data = base64.b64decode(b64)
         gemini_parts.append(f"\n[Field: {field_name}]")
-        gemini_parts.append({
-            "mime_type": "image/png",
-            "data":      img_data
-        })
+        gemini_parts.append(types.Part.from_bytes(data=img_data, mime_type='image/png'))
 
     # ── Step 8: Call Gemini with rotation ──
     print("🤖 Sending PDF regions to Gemini for OCR...")
@@ -524,7 +564,7 @@ Return this exact JSON structure:
 
     raw_text = response.text.strip()
     raw_text = re.sub(r'```json\s*', '', raw_text)
-    raw_text = re.sub(r'```\s*',     '', raw_text)
+    raw_text = re.sub(r'```\s*', '', raw_text)
     raw_text = raw_text.strip()
 
     extracted = json.loads(raw_text)
