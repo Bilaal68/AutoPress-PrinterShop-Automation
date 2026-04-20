@@ -9,19 +9,16 @@ const getToken = async () => {
   await new Promise(resolve => setTimeout(resolve, 100));
   
   const user = auth.currentUser;
-  console.log('🔑 getToken called, user:', user?.email || 'No user');
   
   if (!user) {
-    console.log('❌ No user found in auth');
     return null;
   }
   
   try {
     const token = await user.getIdToken();
-    console.log('✅ Token obtained, length:', token.length);
     return token;
   } catch (error) {
-    console.error('❌ Error getting token:', error);
+    console.error('Error getting token:', error);
     return null;
   }
 };
@@ -72,7 +69,6 @@ const api = {
 
   async extractImageData(frontImage, backImage, profileImage, options = {}) {
     const token = await getToken();
-    console.log('📤 extractImageData - token exists:', !!token);
     
     const formData = new FormData();
     formData.append('front_image', frontImage);
@@ -104,7 +100,6 @@ const api = {
 
   async addToQueue(jobData) {
     const token = await getToken();
-    console.log('📤 addToQueue - token exists:', !!token);
     
     const headers = {
       'Content-Type': 'application/json',
@@ -165,7 +160,6 @@ const api = {
 
   async generatePDF(cardsData) {
     const token = await getToken();
-    console.log('📤 generatePDF - token exists:', !!token);
     
     const headers = {
       'Content-Type': 'application/json',

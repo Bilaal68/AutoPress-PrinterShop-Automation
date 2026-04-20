@@ -163,10 +163,10 @@ const ImageMode = () => {
     }
 
     setIsProcessing(true);
-    setProgressMessage("Uploading images to server...");
+    setProgressMessage("Uploading images...");
 
     try {
-      setProgressMessage("Analyzing ID card with AI (Gemini)...");
+      setProgressMessage("Processing ID card...");
 
       const result = await api.extractImageData(
         files.front,
@@ -660,7 +660,7 @@ const ImageMode = () => {
                 {isProcessing ? (
                   <>
                     <Loader className="h-4 w-4 animate-spin" />
-                    <span>Processing (5-10 sec)...</span>
+                    <span>Processing...</span>
                   </>
                 ) : (
                   <>

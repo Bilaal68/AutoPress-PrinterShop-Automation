@@ -56,9 +56,30 @@ const PaymentPage = () => {
   ];
 
   const paymentMethods = [
-    { id: "webbir", name: "WeBirr", icon: Smartphone, color: "bg-green-500" },
-    { id: "telebirr", name: "Telebirr", icon: Phone, color: "bg-blue-500" },
-    { id: "cbe", name: "CBE Birr", icon: CreditCard, color: "bg-purple-500" },
+    {
+      id: "webbir",
+      name: "WeBirr",
+      icon: Smartphone,
+      color: "bg-green-500",
+      accountNumber: "0969404267",
+      accountName: "Bilal Mohamed Hussein",
+    },
+    {
+      id: "telebirr",
+      name: "Telebirr",
+      icon: Phone,
+      color: "bg-blue-500",
+      accountNumber: "0969404267",
+      accountName: "Bilal Mohamed Hussein",
+    },
+    {
+      id: "cbe",
+      name: "CBE Birr",
+      icon: CreditCard,
+      color: "bg-purple-500",
+      accountNumber: "1000624900891",
+      accountName: "Bilal Mohamed Hussein",
+    },
   ];
 
   const handleSelectPackage = (pkg) => {
@@ -133,6 +154,11 @@ const PaymentPage = () => {
     } else {
       navigate("/pricing");
     }
+  };
+
+  // Get current selected payment method details
+  const getCurrentPaymentDetails = () => {
+    return paymentMethods.find((m) => m.id === paymentMethod);
   };
 
   if (step === "select") {
@@ -221,6 +247,8 @@ const PaymentPage = () => {
     );
   }
 
+  const currentPayment = getCurrentPaymentDetails();
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
@@ -286,7 +314,7 @@ const PaymentPage = () => {
             </div>
           </div>
 
-          {/* Payment Instructions */}
+          {/* Payment Instructions - Dynamic based on selection */}
           <div className="mb-6 p-4 bg-blue-50 rounded-lg">
             <h4 className="font-medium text-blue-800 mb-2">
               Payment Instructions:
@@ -302,8 +330,18 @@ const PaymentPage = () => {
                 2. Send <strong>{selectedPackage?.price} Birr</strong> to:
               </p>
               <div className="bg-white p-3 rounded-lg font-mono text-center">
-                <p className="text-lg font-bold">09 123 4567</p>
-                <p className="text-xs text-gray-500 mt-1">AutoPress Ethiopia</p>
+                <p className="text-lg font-bold">
+                  {currentPayment?.accountNumber || "Select payment method"}
+                </p>
+                <p className="text-sm text-gray-700 mt-1">
+                  Account Name:{" "}
+                  <strong>
+                    {currentPayment?.accountName || "AutoPress Ethiopia"}
+                  </strong>
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Reference: Your email or phone number
+                </p>
               </div>
               <p>3. Enter the receipt/transaction number below</p>
             </div>

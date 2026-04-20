@@ -32,7 +32,6 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("🔥 Auth state changed:", firebaseUser?.email || "No user");
       setUser(firebaseUser);
 
       if (firebaseUser) {
@@ -48,47 +47,40 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const fetchUserData = async (uid) => {
-    console.log("📡 Fetching user data for UID:", uid);
     try {
       const userDocRef = doc(db, "users", uid);
       const userDoc = await getDoc(userDocRef);
 
       if (userDoc.exists()) {
         const data = userDoc.data();
-        console.log("✅ User data loaded:", data);
         setUserData(data);
       } else {
-        console.log("⚠️ No Firestore document found, creating...");
         await createUserInFirestore(uid);
       }
     } catch (error) {
-      console.error("❌ Error fetching user data:", error);
+      console.error("Error fetching user data:", error);
     }
   };
 
   // Refresh user data from Firestore
   const refreshUserData = async () => {
     if (!user) {
-      console.log("❌ No user logged in, cannot refresh");
       return false;
     }
 
     try {
-      console.log("🔄 Refreshing user data for UID:", user.uid);
       const userDocRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (userDoc.exists()) {
         const data = userDoc.data();
         setUserData(data);
-        console.log("✅ User data refreshed:", data);
         return true;
       } else {
-        console.log("⚠️ User document not found during refresh");
         return false;
       }
     } catch (error) {
-      console.error("❌ Error refreshing user data:", error);
+      console.error("Error refreshing user data:", error);
       return false;
     }
   };
@@ -113,20 +105,16 @@ export const AuthProvider = ({ children }) => {
         totalCreditsUsed: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        role: "user", // Default role is 'user', admin must be set manually
+        role: "user",
         isActive: true,
       };
 
       const userDocRef = doc(db, "users", uid);
       await setDoc(userDocRef, newUserData);
       setUserData(newUserData);
-      console.log(
-        "✅ User document created in Firestore with username:",
-        displayName,
-      );
       return true;
     } catch (error) {
-      console.error("❌ Error creating user in Firestore:", error);
+      console.error("Error creating user in Firestore:", error);
       return false;
     }
   };
@@ -134,12 +122,11 @@ export const AuthProvider = ({ children }) => {
   // Email/Password Login
   const login = async (email, password) => {
     try {
-      console.log("🔐 Logging in:", email);
       const result = await signInWithEmailAndPassword(auth, email, password);
       await fetchUserData(result.user.uid);
       return { success: true, user: result.user };
     } catch (error) {
-      console.error("❌ Login error:", error);
+      console.error("Login error:", error);
       let errorMessage = "Login failed";
       if (error.code === "auth/user-not-found") {
         errorMessage = "No account found with this email";
@@ -157,13 +144,11 @@ export const AuthProvider = ({ children }) => {
   // Email/Password Register with username
   const register = async (email, password, username) => {
     try {
-      console.log("📝 Registering new user:", email, "Username:", username);
       const result = await createUserWithEmailAndPassword(
         auth,
         email,
         password,
       );
-      console.log("✅ Registration successful, UID:", result.user.uid);
 
       // Update profile with username
       await updateProfile(result.user, {
@@ -177,7 +162,7 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true, user: result.user };
     } catch (error) {
-      console.error("❌ Register error:", error);
+      console.error("Register error:", error);
       let errorMessage = "Registration failed";
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "Email already in use";
@@ -215,38 +200,24 @@ export const AuthProvider = ({ children }) => {
       });
 
       setUserData((prev) => ({ ...prev, credits: newCredits }));
-      console.log("✅ Credits updated:", newCredits);
       return true;
     } catch (error) {
-      console.error("❌ Error updating credits:", error);
+      console.error("Error updating credits:", error);
       return false;
     }
   };
 
   // Deduct credits (when generating ID card)
   const deductCredits = async (amount) => {
-    console.log("💰 Attempting to deduct:", amount, "credits");
-    console.log("Current user:", user?.uid);
-    console.log("Current userData:", userData);
-
     if (!user || !userData) {
-      console.log("❌ No user or user data");
       return false;
     }
 
     if (userData.credits < amount) {
-      console.log(
-        "❌ Insufficient credits:",
-        userData.credits,
-        "needed:",
-        amount,
-      );
       return false;
     }
 
     const newCredits = userData.credits - amount;
-    console.log("💰 New credits amount:", newCredits);
-
     const success = await updateUserCredits(newCredits);
 
     if (success) {
@@ -260,7 +231,6 @@ export const AuthProvider = ({ children }) => {
   const addCredits = async (amount) => {
     if (!user) return false;
     const newCredits = (userData?.credits || 0) + amount;
-    console.log("💰 Adding credits:", amount, "New total:", newCredits);
     const success = await updateUserCredits(newCredits);
 
     if (success) {
@@ -282,10 +252,9 @@ export const AuthProvider = ({ children }) => {
       });
 
       setUserData((prev) => ({ ...prev, ...updates }));
-      console.log("✅ User profile updated:", updates);
       return true;
     } catch (error) {
-      console.error("❌ Error updating profile:", error);
+      console.error("Error updating profile:", error);
       return false;
     }
   };
@@ -301,9 +270,8 @@ export const AuthProvider = ({ children }) => {
       await signOut(auth);
       setUser(null);
       setUserData(null);
-      console.log("✅ User logged out");
     } catch (error) {
-      console.error("❌ Logout error:", error);
+      console.error("Logout error:", error);
     }
   };
 
