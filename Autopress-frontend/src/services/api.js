@@ -1,7 +1,7 @@
 // src/services/api.js
 import { auth } from './firebase';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://api-autopress-206823065550.us-central1.run.app';
 
 // Helper function to get Firebase token - FIXED with better error handling
 const getToken = async () => {
